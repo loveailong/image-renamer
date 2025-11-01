@@ -2,56 +2,37 @@ name: Build Universal macOS App for Tkinter
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ main, master ]
-    paths:
-      - 'image_renamer.py'
-      - 'requirements.txt'
-      - '.github/workflows/build-macos.yml'
 
 jobs:
   build-intel:
     runs-on: macos-12  # Intel Runner
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: 'pip'  # 缓存pip依赖
+          cache: 'pip'  # 缓存 pip 依赖
 
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          pip3 install pyinstaller pillow
+          # 使用预编译的 wheel，避免编译
+          pip3 install --only-binary=all pyinstaller pillow
+          # 预热 PyInstaller 缓存
+          pyinstaller --version
 
-      - name: Cache PyInstaller build
-        uses: actions/cache@v4
-        with:
-          path: |
-            build/
-            __pycache__/
-          key: ${{ runner.os }}-intel-pyinstaller-${{ hashFiles('image_renamer.py') }}
-          restore-keys: |
-            ${{ runner.os }}-intel-pyinstaller-
-
-      - name: Build Intel app (Optimized)
+      - name: Build Intel app
         run: |
           mkdir -p dist_intel
-          pyinstaller \
-            --onefile \
-            --windowed \
-            --name=ImageRenamer \
+          # 优化 PyInstaller 参数，减少分析时间
+          pyinstaller --onefile --windowed \
             --hidden-import=tkinter \
             --hidden-import=PIL.Image \
             --hidden-import=PIL.ImageTk \
             --exclude-module=matplotlib \
             --exclude-module=numpy \
             --exclude-module=scipy \
-            --exclude-module=pandas \
-            --exclude-module=jupyter \
-            --exclude-module=IPython \
             --noconfirm \
             --clean \
             image_renamer.py
@@ -62,50 +43,33 @@ jobs:
         with:
           name: intel_build
           path: dist_intel/
-          retention-days: 1  # 只保留1天，节省存储
 
   build-arm:
     runs-on: macos-14  # Apple Silicon Runner
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: 'pip'  # 缓存pip依赖
+          cache: 'pip'  # 缓存 pip 依赖
 
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          pip3 install pyinstaller pillow
+          pip3 install --only-binary=all pyinstaller pillow
+          pyinstaller --version
 
-      - name: Cache PyInstaller build
-        uses: actions/cache@v4
-        with:
-          path: |
-            build/
-            __pycache__/
-          key: ${{ runner.os }}-arm-pyinstaller-${{ hashFiles('image_renamer.py') }}
-          restore-keys: |
-            ${{ runner.os }}-arm-pyinstaller-
-
-      - name: Build ARM app (Optimized)
+      - name: Build ARM app
         run: |
           mkdir -p dist_arm
-          pyinstaller \
-            --onefile \
-            --windowed \
-            --name=ImageRenamer \
+          pyinstaller --onefile --windowed \
             --hidden-import=tkinter \
             --hidden-import=PIL.Image \
             --hidden-import=PIL.ImageTk \
             --exclude-module=matplotlib \
             --exclude-module=numpy \
             --exclude-module=scipy \
-            --exclude-module=pandas \
-            --exclude-module=jupyter \
-            --exclude-module=IPython \
             --noconfirm \
             --clean \
             image_renamer.py
@@ -116,7 +80,6 @@ jobs:
         with:
           name: arm_build
           path: dist_arm/
-          retention-days: 1  # 只保留1天，节省存储
 
   combine:
     needs: [build-intel, build-arm]
@@ -137,61 +100,15 @@ jobs:
       - name: Combine Universal binary
         run: |
           mkdir -p dist_universal
-          
-          # 查找可执行文件
-          INTEL_EXEC=$(find intel_build -name "ImageRenamer" -type f | head -1)
-          ARM_EXEC=$(find arm_build -name "ImageRenamer" -type f | head -1)
-          
-          echo "Intel executable: $INTEL_EXEC"
-          echo "ARM executable: $ARM_EXEC"
-          
-          # 检查文件是否存在
-          if [[ ! -f "$INTEL_EXEC" ]]; then
-            echo "Error: Intel executable not found"
-            exit 1
-          fi
-          
-          if [[ ! -f "$ARM_EXEC" ]]; then
-            echo "Error: ARM executable not found"
-            exit 1
-          fi
-          
-          # 检查架构
-          echo "Intel architecture:"
-          file "$INTEL_EXEC"
-          echo "ARM architecture:"
-          file "$ARM_EXEC"
-          
-          # 合并成通用二进制
-          lipo -create "$INTEL_EXEC" "$ARM_EXEC" -output dist_universal/ImageRenamer_Universal
-          chmod +x dist_universal/ImageRenamer_Universal
-          
-          # 验证通用二进制
-          echo "Universal binary architecture:"
-          file dist_universal/ImageRenamer_Universal
-          lipo -info dist_universal/ImageRenamer_Universal
-          
-          # 获取文件大小信息
-          echo "File sizes:"
-          ls -lh "$INTEL_EXEC" "$ARM_EXEC" dist_universal/ImageRenamer_Universal
-
-      - name: Create release info
-        run: |
-          echo "# macOS Universal App Build" > dist_universal/README.md
-          echo "" >> dist_universal/README.md
-          echo "## 文件说明" >> dist_universal/README.md
-          echo "- ImageRenamer_Universal: 通用二进制文件，支持Intel和Apple Silicon Mac" >> dist_universal/README.md
-          echo "" >> dist_universal/README.md
-          echo "## 使用方法" >> dist_universal/README.md
-          echo "1. 下载 ImageRenamer_Universal 文件" >> dist_universal/README.md
-          echo "2. 双击运行（可能需要在系统偏好设置中允许运行）" >> dist_universal/README.md
-          echo "3. 如果提示安全警告，请在系统偏好设置 > 安全性与隐私中点击'仍要打开'" >> dist_universal/README.md
-          echo "" >> dist_universal/README.md
-          echo "构建时间: $(date)" >> dist_universal/README.md
+          # 找出两个架构的可执行文件（文件名与你 py 文件同名）
+          INTEL_EXEC=$(find intel_build -type f -perm +111 | grep image_renamer | head -1)
+          ARM_EXEC=$(find arm_build -type f -perm +111 | grep image_renamer | head -1)
+          # 用 lipo 合并成通用二进制
+          lipo -create "$INTEL_EXEC" "$ARM_EXEC" -output dist_universal/image_renamer_universal
+          chmod +x dist_universal/image_renamer_universal
 
       - name: Upload Universal App
         uses: actions/upload-artifact@v4
         with:
-          name: macOS_Universal_App
+          name: macOS_universal_app
           path: dist_universal/
-          retention-days: 30  # 保留30天
