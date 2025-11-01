@@ -20,14 +20,15 @@ jobs:
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          pip3 install pyinstaller
+          pip3 install pyinstaller pillow
 
       - name: Build macOS app
         run: |
+          mkdir -p dist
           pyinstaller --onefile --windowed image_renamer.py
 
-      - name: Upload build result
+      - name: Upload macOS App
         uses: actions/upload-artifact@v4
         with:
-          name: mac_app
-          path: dist/*
+          name: macOS_app
+          path: dist/
