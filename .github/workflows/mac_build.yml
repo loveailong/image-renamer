@@ -49,11 +49,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: 'pip'
 
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          pip3 install --only-binary=all pyinstaller pillow
+          pip3 install --only-binary=all -r requirements.txt
           pyinstaller --version
 
       - name: Build ARM app
@@ -96,12 +97,38 @@ jobs:
       - name: Combine Universal binary
         run: |
           mkdir -p dist_universal
-          # 找出两个架构的可执行文件（文件名与你 py 文件同名）
-          INTEL_EXEC=$(find intel_build -type f -perm +111 | grep image_renamer | head -1)
-          ARM_EXEC=$(find arm_build -type f -perm +111 | grep image_renamer | head -1)
+          
+          # 调试：查看下载的文件结构
+          echo "Intel build contents:"
+          find intel_build -type f -ls
+          echo "ARM build contents:"
+          find arm_build -type f -ls
+          
+          # 找出可执行文件
+          INTEL_EXEC=$(find intel_build -name "image_renamer*" -type f | head -1)
+          ARM_EXEC=$(find arm_build -name "image_renamer*" -type f | head -1)
+          
+          echo "Intel executable: $INTEL_EXEC"
+          echo "ARM executable: $ARM_EXEC"
+          
+          # 检查文件是否存在
+          if [ ! -f "$INTEL_EXEC" ]; then
+            echo "Error: Intel executable not found"
+            exit 1
+          fi
+          
+          if [ ! -f "$ARM_EXEC" ]; then
+            echo "Error: ARM executable not found"
+            exit 1
+          fi
+          
           # 用 lipo 合并成通用二进制
           lipo -create "$INTEL_EXEC" "$ARM_EXEC" -output dist_universal/image_renamer_universal
           chmod +x dist_universal/image_renamer_universal
+          
+          # 验证结果
+          echo "Universal binary info:"
+          lipo -info dist_universal/image_renamer_universal
 
       - name: Upload Universal App
         uses: actions/upload-artifact@v4

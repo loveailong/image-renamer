@@ -7,11 +7,23 @@
 
 import os
 import re
+import sys
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import threading
 from pathlib import Path
-from PIL import Image, ImageTk
+
+# 添加调试信息
+print(f"Python版本: {sys.version}")
+print(f"运行平台: {sys.platform}")
+
+try:
+    from PIL import Image, ImageTk
+    print("PIL/Pillow 导入成功")
+except ImportError as e:
+    print(f"PIL/Pillow 导入失败: {e}")
+    messagebox.showerror("错误", "缺少必要的图片处理库 Pillow\n请运行: pip install pillow")
+    sys.exit(1)
 
 class ImageRenamerApp:
     def __init__(self, root):
@@ -57,9 +69,13 @@ class ImageRenamerApp:
         self.root.title("图片批量重命名工具")
         self.root.geometry("800x800")
         
-        # 设置macOS风格
-        if self.root.tk.call('tk', 'windowingsystem') == 'aqua':
-            self.root.configure(bg='#f0f0f0')
+        # 设置macOS风格 - 添加异常处理
+        try:
+            if self.root.tk.call('tk', 'windowingsystem') == 'aqua':
+                self.root.configure(bg='#f0f0f0')
+        except Exception:
+            # 如果macOS样式设置失败，使用默认样式
+            pass
         
         # 创建主框架
         main_frame = ttk.Frame(self.root, padding="20")
@@ -70,9 +86,15 @@ class ImageRenamerApp:
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(1, weight=1)
         
-        # 标题
-        title_label = ttk.Label(main_frame, text="图片批量重命名工具", 
-                               font=('SF Pro Display', 24, 'bold'))
+        # 标题 - 使用跨平台字体
+        try:
+            # 尝试使用macOS系统字体
+            title_font = ('SF Pro Display', 24, 'bold')
+            title_label = ttk.Label(main_frame, text="图片批量重命名工具", font=title_font)
+        except Exception:
+            # 如果系统字体不可用，使用默认字体
+            title_label = ttk.Label(main_frame, text="图片批量重命名工具", 
+                                   font=('Helvetica', 24, 'bold'))
         title_label.grid(row=0, column=0, columnspan=3, pady=(0, 30))
         
         # 文件夹选择区域
@@ -166,12 +188,22 @@ class ImageRenamerApp:
     
     def browse_folder(self):
         """浏览文件夹"""
-        folder = filedialog.askdirectory(title="选择包含子文件夹的目标文件夹")
-        if folder:
-            self.selected_folder = folder
-            self.folder_var.set(folder)
-            self.preview_btn.config(state='normal')
-            self.status_var.set(f"已选择文件夹: {os.path.basename(folder)}")
+        try:
+            folder = filedialog.askdirectory(title="选择包含子文件夹的目标文件夹")
+            if folder:
+                # 检查文件夹权限
+                if not os.access(folder, os.R_OK):
+                    messagebox.showerror("错误", f"没有读取权限: {folder}")
+                    return
+                
+                self.selected_folder = folder
+                self.folder_var.set(folder)
+                self.preview_btn.config(state='normal')
+                self.status_var.set(f"已选择文件夹: {os.path.basename(folder)}")
+                print(f"选择的文件夹: {folder}")
+        except Exception as e:
+            messagebox.showerror("错误", f"选择文件夹时发生错误: {str(e)}")
+            print(f"浏览文件夹错误: {e}")
     
     def update_quality_label(self, value):
         """更新质量标签"""
@@ -182,6 +214,22 @@ class ImageRenamerApp:
         """压缩图片到指定尺寸"""
         try:
             with Image.open(input_path) as img:
+                # 处理图片方向（EXIF数据）
+                try:
+                    from PIL.ExifTags import ORIENTATION
+                    exif = img._getexif()
+                    if exif is not None:
+                        orientation = exif.get(0x0112)  # ORIENTATION tag
+                        if orientation == 3:
+                            img = img.rotate(180, expand=True)
+                        elif orientation == 6:
+                            img = img.rotate(270, expand=True)
+                        elif orientation == 8:
+                            img = img.rotate(90, expand=True)
+                except Exception:
+                    # 如果EXIF处理失败，继续处理
+                    pass
+                
                 # 转换为RGB模式（如果是RGBA或其他模式）
                 if img.mode != 'RGB':
                     img = img.convert('RGB')
@@ -201,8 +249,12 @@ class ImageRenamerApp:
                 new_width = int(img_width * scale)
                 new_height = int(img_height * scale)
                 
-                # 缩放图片
-                img_resized = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                # 缩放图片 - 兼容旧版本PIL
+                try:
+                    img_resized = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                except AttributeError:
+                    # 旧版本PIL使用ANTIALIAS
+                    img_resized = img.resize((new_width, new_height), Image.ANTIALIAS)
                 
                 # 创建目标尺寸的白色背景
                 background = Image.new('RGB', target_size, (255, 255, 255))
@@ -234,9 +286,16 @@ class ImageRenamerApp:
     def get_jpg_files_in_folder(self, folder_path):
         """获取文件夹中的所有jpg文件"""
         jpg_files = []
-        for file in os.listdir(folder_path):
-            if file.lower().endswith('.jpg'):
-                jpg_files.append(file)
+        try:
+            for file in os.listdir(folder_path):
+                # 支持更多图片格式，忽略隐藏文件
+                if (not file.startswith('.') and 
+                    file.lower().endswith(('.jpg', '.jpeg'))):
+                    jpg_files.append(file)
+        except PermissionError:
+            print(f"权限错误：无法访问文件夹 {folder_path}")
+        except Exception as e:
+            print(f"读取文件夹错误 {folder_path}: {e}")
         return sorted(jpg_files)  # 按文件名排序  
   
     def preview_rename(self):
@@ -443,20 +502,28 @@ def main():
     """主函数"""
     root = tk.Tk()
     
-    # macOS特定设置
-    if root.tk.call('tk', 'windowingsystem') == 'aqua':
-        # 设置macOS原生外观
-        root.tk.call('tk::unsupported::MacWindowStyle', 'style', root._w, 'document')
+    # macOS特定设置 - 添加异常处理
+    try:
+        if root.tk.call('tk', 'windowingsystem') == 'aqua':
+            # 设置macOS原生外观
+            root.tk.call('tk::unsupported::MacWindowStyle', 'style', root._w, 'document')
+    except Exception:
+        # 如果macOS特定设置失败，继续使用默认设置
+        pass
     
     app = ImageRenamerApp(root)
     
     # 设置窗口居中
-    root.update_idletasks()
-    width = root.winfo_width()
-    height = root.winfo_height()
-    x = (root.winfo_screenwidth() // 2) - (width // 2)
-    y = (root.winfo_screenheight() // 2) - (height // 2)
-    root.geometry(f'{width}x{height}+{x}+{y}')
+    try:
+        root.update_idletasks()
+        width = root.winfo_width()
+        height = root.winfo_height()
+        x = (root.winfo_screenwidth() // 2) - (width // 2)
+        y = (root.winfo_screenheight() // 2) - (height // 2)
+        root.geometry(f'{width}x{height}+{x}+{y}')
+    except Exception:
+        # 如果窗口居中失败，使用默认位置
+        pass
     
     root.mainloop()
 
