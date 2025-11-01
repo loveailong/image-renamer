@@ -1,17 +1,13 @@
-name: Build macOS App for Tkinter
+name: Build Universal macOS App for Tkinter
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
-  build:
-    runs-on: macos-latest
+  build-intel:
+    runs-on: macos-12  # Intel Runner
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -22,13 +18,80 @@ jobs:
           python3 -m pip install --upgrade pip
           pip3 install pyinstaller pillow
 
-      - name: Build macOS app
+      - name: Build Intel app
         run: |
-          mkdir -p dist
-          pyinstaller --onefile --windowed image_renamer.py
+          mkdir -p dist_intel
+          pyinstaller --onefile --windowed \
+            --hidden-import=tkinter \
+            --hidden-import=PIL.Image \
+            --hidden-import=PIL.ImageTk \
+            image_renamer.py
+          mv dist dist_intel
 
-      - name: Upload macOS App
+      - name: Upload Intel build
         uses: actions/upload-artifact@v4
         with:
-          name: macOS_app
-          path: dist/
+          name: intel_build
+          path: dist_intel/
+
+  build-arm:
+    runs-on: macos-14  # Apple Silicon Runner
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install pyinstaller pillow
+
+      - name: Build ARM app
+        run: |
+          mkdir -p dist_arm
+          pyinstaller --onefile --windowed \
+            --hidden-import=tkinter \
+            --hidden-import=PIL.Image \
+            --hidden-import=PIL.ImageTk \
+            image_renamer.py
+          mv dist dist_arm
+
+      - name: Upload ARM build
+        uses: actions/upload-artifact@v4
+        with:
+          name: arm_build
+          path: dist_arm/
+
+  combine:
+    needs: [build-intel, build-arm]
+    runs-on: macos-14
+    steps:
+      - name: Download Intel build
+        uses: actions/download-artifact@v4
+        with:
+          name: intel_build
+          path: intel_build
+
+      - name: Download ARM build
+        uses: actions/download-artifact@v4
+        with:
+          name: arm_build
+          path: arm_build
+
+      - name: Combine Universal binary
+        run: |
+          mkdir -p dist_universal
+          # 找出两个架构的可执行文件（文件名与你 py 文件同名）
+          INTEL_EXEC=$(find intel_build -type f -perm +111 | grep image_renamer | head -1)
+          ARM_EXEC=$(find arm_build -type f -perm +111 | grep image_renamer | head -1)
+          # 用 lipo 合并成通用二进制
+          lipo -create "$INTEL_EXEC" "$ARM_EXEC" -output dist_universal/image_renamer_universal
+          chmod +x dist_universal/image_renamer_universal
+
+      - name: Upload Universal App
+        uses: actions/upload-artifact@v4
+        with:
+          name: macOS_universal_app
+          path: dist_universal/
