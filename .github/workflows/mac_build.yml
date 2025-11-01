@@ -5,7 +5,7 @@ on:
 
 jobs:
   build-intel:
-    runs-on: macos-12  # Intel Runner
+    runs-on: macos-13  # Intel Runner (比 macos-12 更快)
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -17,15 +17,12 @@ jobs:
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          # 使用预编译的 wheel，避免编译
           pip3 install --only-binary=all -r requirements.txt
-          # 预热 PyInstaller 缓存
           pyinstaller --version
 
       - name: Build Intel app
         run: |
           mkdir -p dist_intel
-          # 优化 PyInstaller 参数，减少分析时间
           pyinstaller --onefile --windowed \
             --hidden-import=tkinter \
             --hidden-import=PIL.Image \
@@ -52,12 +49,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: 'pip'
 
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          pip3 install --only-binary=all -r requirements.txt
+          pip3 install --only-binary=all pyinstaller pillow
           pyinstaller --version
 
       - name: Build ARM app
