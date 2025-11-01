@@ -12,13 +12,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: 'pip'  # 缓存 pip 依赖
+          cache: 'pip'
 
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
           # 使用预编译的 wheel，避免编译
-          pip3 install --only-binary=all pyinstaller pillow
+          pip3 install --only-binary=all -r requirements.txt
           # 预热 PyInstaller 缓存
           pyinstaller --version
 
@@ -52,12 +52,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: 'pip'  # 缓存 pip 依赖
+          cache: 'pip'
 
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          pip3 install --only-binary=all pyinstaller pillow
+          pip3 install --only-binary=all -r requirements.txt
           pyinstaller --version
 
       - name: Build ARM app
