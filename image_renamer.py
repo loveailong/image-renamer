@@ -283,8 +283,23 @@ class ImageRenamerApp:
             return match.group(1)
         return None
     
+    def natural_sort_key(self, text):
+        """
+        自然排序键函数
+        将 '1.jpg', '2.jpg', '10.jpg' 正确排序为 1, 2, 10
+        而不是字符串排序的 1, 10, 2
+        """
+        import re
+        def atoi(text):
+            return int(text) if text.isdigit() else text.lower()
+        
+        return [atoi(c) for c in re.split(r'(\d+)', text)]
+    
     def get_jpg_files_in_folder(self, folder_path):
-        """获取文件夹中的所有jpg文件"""
+        """
+        获取文件夹中的所有jpg文件
+        按照文件名的自然顺序排序（模拟Finder的默认排序）
+        """
         jpg_files = []
         try:
             for file in os.listdir(folder_path):
@@ -294,9 +309,22 @@ class ImageRenamerApp:
                     jpg_files.append(file)
         except PermissionError:
             print(f"权限错误：无法访问文件夹 {folder_path}")
+            return []
         except Exception as e:
             print(f"读取文件夹错误 {folder_path}: {e}")
-        return sorted(jpg_files)  # 按文件名排序  
+            return []
+        
+        # 使用自然排序（类似Finder的默认排序）
+        # 这样 A1.jpg, A2.jpg, A10.jpg 会正确排序
+        jpg_files.sort(key=self.natural_sort_key)
+        
+        # 调试输出 - 显示排序后的文件顺序
+        if jpg_files:
+            print(f"\n文件夹 '{os.path.basename(folder_path)}' 中的图片顺序:")
+            for i, f in enumerate(jpg_files, 1):
+                print(f"  {i}. {f}")
+        
+        return jpg_files  
   
     def preview_rename(self):
         """预览重命名结果"""
