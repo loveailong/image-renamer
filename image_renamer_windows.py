@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 图片批量重命名工具
-适用于macOS系统
+适用于Windows系统
 """
 
 import os
@@ -66,7 +66,7 @@ class ImageRenamerApp:
     
     def setup_ui(self):
         """设置用户界面"""
-        self.root.title("图片批量重命名工具-macOS版")
+        self.root.title("图片批量重命名工具 - Windows版")
         self.root.geometry("800x800")
         
         # 设置macOS风格 - 添加异常处理
@@ -311,26 +311,21 @@ class ImageRenamerApp:
             return match.group(1)
         return None
     
-    def get_file_sort_key(self, folder_path, filename):
+    def natural_sort_key(self, text):
         """
-        获取文件的排序键
-        优先使用修改时间，确保跨平台一致性
+        自然排序键函数 - Windows版本
+        将 '1.jpg', '2.jpg', '10.jpg' 正确排序为 1, 2, 10
+        而不是字符串排序的 1, 10, 2
         """
-        filepath = os.path.join(folder_path, filename)
-        try:
-            stat_info = os.stat(filepath)
-            # 使用修改时间作为主要排序依据（跨平台一致）
-            # 如果修改时间相同，则使用文件名作为次要排序
-            return (stat_info.st_mtime, filename.lower())
-        except Exception as e:
-            print(f"获取文件信息失败 {filename}: {e}")
-            # 如果获取失败，返回一个默认值
-            return (0, filename.lower())
+        def atoi(text):
+            return int(text) if text.isdigit() else text.lower()
+        
+        return [atoi(c) for c in re.split(r'(\d+)', text)]
     
     def get_jpg_files_in_folder(self, folder_path):
         """
         获取文件夹中的所有jpg文件
-        按照文件修改时间排序，确保 macOS 和 Windows 上顺序一致
+        Windows版本：按照文件名的自然顺序排序
         """
         jpg_files = []
         try:
@@ -346,21 +341,14 @@ class ImageRenamerApp:
             print(f"读取文件夹错误 {folder_path}: {e}")
             return []
         
-        # 按照文件修改时间排序（跨平台一致）
-        jpg_files.sort(key=lambda f: self.get_file_sort_key(folder_path, f))
+        # Windows版本：使用自然排序（按文件名）
+        jpg_files.sort(key=self.natural_sort_key)
         
-        # 调试输出 - 显示排序后的文件顺序和时间戳
+        # 调试输出 - 显示排序后的文件顺序
         if jpg_files:
-            print(f"\n文件夹 '{os.path.basename(folder_path)}' 中的图片顺序（按修改时间）:")
-            import time
+            print(f"\n文件夹 '{os.path.basename(folder_path)}' 中的图片顺序（按文件名自然排序）:")
             for i, f in enumerate(jpg_files, 1):
-                filepath = os.path.join(folder_path, f)
-                try:
-                    stat_info = os.stat(filepath)
-                    time_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(stat_info.st_mtime))
-                    print(f"  {i}. {f} (修改时间: {time_str})")
-                except Exception:
-                    print(f"  {i}. {f}")
+                print(f"  {i}. {f}")
         
         return jpg_files  
   
