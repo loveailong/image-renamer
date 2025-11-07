@@ -44,8 +44,8 @@ class ImageRenamerApp:
             "_6_正后方.jpg",
             "_7_右后45度.jpg",
             "_9_右后大灯.jpg",
-            "_30_左侧底大边.jpg",
             "_29_右侧底大边.jpg",
+            "_30_左侧底大边.jpg",
             "_57_车顶.jpg",
             "_20_驾驶位.jpg",
             "_19_驾驶员座椅.jpg",
@@ -122,17 +122,6 @@ class ImageRenamerApp:
         self.rename_enable_check = ttk.Checkbutton(options_frame, text="启用重命名", 
                                                    variable=self.rename_enable_var)
         self.rename_enable_check.grid(row=0, column=0, sticky=tk.W, padx=(0, 20), pady=(0, 10))
-        
-        # 排序方式选择
-        ttk.Label(options_frame, text="排序方式:").grid(row=0, column=1, sticky=tk.W, padx=(0, 10))
-        self.sort_method_var = tk.StringVar()
-        self.sort_method_var.set("name")  # 默认按文件名排序（与Finder一致）
-        sort_name_radio = ttk.Radiobutton(options_frame, text="按文件名", 
-                                         variable=self.sort_method_var, value="name")
-        sort_name_radio.grid(row=0, column=2, sticky=tk.W, padx=(0, 10))
-        sort_time_radio = ttk.Radiobutton(options_frame, text="按修改时间", 
-                                         variable=self.sort_method_var, value="time")
-        sort_time_radio.grid(row=0, column=3, sticky=tk.W)
         
         # 第二行：压缩选项
         self.compress_var = tk.BooleanVar()
@@ -348,7 +337,7 @@ class ImageRenamerApp:
     def get_jpg_files_in_folder(self, folder_path):
         """
         获取文件夹中的所有jpg文件
-        根据用户选择的排序方式排序
+        按文件名自然排序（与文件管理器默认顺序一致）
         """
         jpg_files = []
         try:
@@ -364,34 +353,14 @@ class ImageRenamerApp:
             print(f"读取文件夹错误 {folder_path}: {e}")
             return []
         
-        # 根据用户选择的排序方式排序
-        sort_method = self.sort_method_var.get()
-        
-        if sort_method == "time":
-            # 按修改时间排序
-            jpg_files.sort(key=lambda f: self.get_file_sort_key_by_time(folder_path, f))
-            sort_desc = "按修改时间"
-        else:
-            # 按文件名自然排序
-            jpg_files.sort(key=self.natural_sort_key)
-            sort_desc = "按文件名"
+        # 按文件名自然排序（与文件管理器默认顺序一致）
+        jpg_files.sort(key=self.natural_sort_key)
         
         # 调试输出 - 显示排序后的文件顺序
         if jpg_files:
-            print(f"\n文件夹 '{os.path.basename(folder_path)}' 中的图片顺序（{sort_desc}）:")
-            if sort_method == "time":
-                import time
-                for i, f in enumerate(jpg_files, 1):
-                    filepath = os.path.join(folder_path, f)
-                    try:
-                        stat_info = os.stat(filepath)
-                        time_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(stat_info.st_mtime))
-                        print(f"  {i}. {f} (修改时间: {time_str})")
-                    except Exception:
-                        print(f"  {i}. {f}")
-            else:
-                for i, f in enumerate(jpg_files, 1):
-                    print(f"  {i}. {f}")
+            print(f"\n文件夹 '{os.path.basename(folder_path)}' 中的图片顺序（按文件名）:")
+            for i, f in enumerate(jpg_files, 1):
+                print(f"  {i}. {f}")
         
         return jpg_files  
   
