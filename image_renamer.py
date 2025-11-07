@@ -123,6 +123,17 @@ class ImageRenamerApp:
                                                    variable=self.rename_enable_var)
         self.rename_enable_check.grid(row=0, column=0, sticky=tk.W, padx=(0, 20), pady=(0, 10))
         
+        # 排序方式选择
+        ttk.Label(options_frame, text="排序方式:").grid(row=0, column=1, sticky=tk.W, padx=(0, 10))
+        self.sort_method_var = tk.StringVar()
+        self.sort_method_var.set("name")  # 默认按文件名排序（与Finder一致）
+        sort_name_radio = ttk.Radiobutton(options_frame, text="按文件名", 
+                                         variable=self.sort_method_var, value="name")
+        sort_name_radio.grid(row=0, column=2, sticky=tk.W, padx=(0, 10))
+        sort_time_radio = ttk.Radiobutton(options_frame, text="按修改时间", 
+                                         variable=self.sort_method_var, value="time")
+        sort_time_radio.grid(row=0, column=3, sticky=tk.W)
+        
         # 第二行：压缩选项
         self.compress_var = tk.BooleanVar()
         self.compress_var.set(False)  # 默认不启用压缩
@@ -311,26 +322,33 @@ class ImageRenamerApp:
             return match.group(1)
         return None
     
-    def get_file_sort_key(self, folder_path, filename):
+    def natural_sort_key(self, text):
         """
-        获取文件的排序键
-        优先使用修改时间，确保跨平台一致性
+        自然排序键函数
+        将 '1.jpg', '2.jpg', '10.jpg' 正确排序为 1, 2, 10
+        而不是字符串排序的 1, 10, 2
+        """
+        def atoi(text):
+            return int(text) if text.isdigit() else text.lower()
+        
+        return [atoi(c) for c in re.split(r'(\d+)', text)]
+    
+    def get_file_sort_key_by_time(self, folder_path, filename):
+        """
+        获取文件的排序键（按修改时间）
         """
         filepath = os.path.join(folder_path, filename)
         try:
             stat_info = os.stat(filepath)
-            # 使用修改时间作为主要排序依据（跨平台一致）
-            # 如果修改时间相同，则使用文件名作为次要排序
             return (stat_info.st_mtime, filename.lower())
         except Exception as e:
             print(f"获取文件信息失败 {filename}: {e}")
-            # 如果获取失败，返回一个默认值
             return (0, filename.lower())
     
     def get_jpg_files_in_folder(self, folder_path):
         """
         获取文件夹中的所有jpg文件
-        按照文件修改时间排序，确保 macOS 和 Windows 上顺序一致
+        根据用户选择的排序方式排序
         """
         jpg_files = []
         try:
@@ -346,20 +364,33 @@ class ImageRenamerApp:
             print(f"读取文件夹错误 {folder_path}: {e}")
             return []
         
-        # 按照文件修改时间排序（跨平台一致）
-        jpg_files.sort(key=lambda f: self.get_file_sort_key(folder_path, f))
+        # 根据用户选择的排序方式排序
+        sort_method = self.sort_method_var.get()
         
-        # 调试输出 - 显示排序后的文件顺序和时间戳
+        if sort_method == "time":
+            # 按修改时间排序
+            jpg_files.sort(key=lambda f: self.get_file_sort_key_by_time(folder_path, f))
+            sort_desc = "按修改时间"
+        else:
+            # 按文件名自然排序
+            jpg_files.sort(key=self.natural_sort_key)
+            sort_desc = "按文件名"
+        
+        # 调试输出 - 显示排序后的文件顺序
         if jpg_files:
-            print(f"\n文件夹 '{os.path.basename(folder_path)}' 中的图片顺序（按修改时间）:")
-            import time
-            for i, f in enumerate(jpg_files, 1):
-                filepath = os.path.join(folder_path, f)
-                try:
-                    stat_info = os.stat(filepath)
-                    time_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(stat_info.st_mtime))
-                    print(f"  {i}. {f} (修改时间: {time_str})")
-                except Exception:
+            print(f"\n文件夹 '{os.path.basename(folder_path)}' 中的图片顺序（{sort_desc}）:")
+            if sort_method == "time":
+                import time
+                for i, f in enumerate(jpg_files, 1):
+                    filepath = os.path.join(folder_path, f)
+                    try:
+                        stat_info = os.stat(filepath)
+                        time_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(stat_info.st_mtime))
+                        print(f"  {i}. {f} (修改时间: {time_str})")
+                    except Exception:
+                        print(f"  {i}. {f}")
+            else:
+                for i, f in enumerate(jpg_files, 1):
                     print(f"  {i}. {f}")
         
         return jpg_files  

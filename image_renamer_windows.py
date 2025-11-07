@@ -123,6 +123,17 @@ class ImageRenamerApp:
                                                    variable=self.rename_enable_var)
         self.rename_enable_check.grid(row=0, column=0, sticky=tk.W, padx=(0, 20), pady=(0, 10))
         
+        # 排序方式选择
+        ttk.Label(options_frame, text="排序方式:").grid(row=0, column=1, sticky=tk.W, padx=(0, 10))
+        self.sort_method_var = tk.StringVar()
+        self.sort_method_var.set("name")  # 默认按文件名排序
+        sort_name_radio = ttk.Radiobutton(options_frame, text="按文件名", 
+                                         variable=self.sort_method_var, value="name")
+        sort_name_radio.grid(row=0, column=2, sticky=tk.W, padx=(0, 10))
+        sort_time_radio = ttk.Radiobutton(options_frame, text="按修改时间", 
+                                         variable=self.sort_method_var, value="time")
+        sort_time_radio.grid(row=0, column=3, sticky=tk.W)
+        
         # 第二行：压缩选项
         self.compress_var = tk.BooleanVar()
         self.compress_var.set(False)  # 默认不启用压缩
@@ -313,7 +324,7 @@ class ImageRenamerApp:
     
     def natural_sort_key(self, text):
         """
-        自然排序键函数 - Windows版本
+        自然排序键函数
         将 '1.jpg', '2.jpg', '10.jpg' 正确排序为 1, 2, 10
         而不是字符串排序的 1, 10, 2
         """
@@ -322,10 +333,22 @@ class ImageRenamerApp:
         
         return [atoi(c) for c in re.split(r'(\d+)', text)]
     
+    def get_file_sort_key_by_time(self, folder_path, filename):
+        """
+        获取文件的排序键（按修改时间）
+        """
+        filepath = os.path.join(folder_path, filename)
+        try:
+            stat_info = os.stat(filepath)
+            return (stat_info.st_mtime, filename.lower())
+        except Exception as e:
+            print(f"获取文件信息失败 {filename}: {e}")
+            return (0, filename.lower())
+    
     def get_jpg_files_in_folder(self, folder_path):
         """
         获取文件夹中的所有jpg文件
-        Windows版本：按照文件名的自然顺序排序
+        根据用户选择的排序方式排序
         """
         jpg_files = []
         try:
@@ -341,14 +364,34 @@ class ImageRenamerApp:
             print(f"读取文件夹错误 {folder_path}: {e}")
             return []
         
-        # Windows版本：使用自然排序（按文件名）
-        jpg_files.sort(key=self.natural_sort_key)
+        # 根据用户选择的排序方式排序
+        sort_method = self.sort_method_var.get()
+        
+        if sort_method == "time":
+            # 按修改时间排序
+            jpg_files.sort(key=lambda f: self.get_file_sort_key_by_time(folder_path, f))
+            sort_desc = "按修改时间"
+        else:
+            # 按文件名自然排序（默认）
+            jpg_files.sort(key=self.natural_sort_key)
+            sort_desc = "按文件名"
         
         # 调试输出 - 显示排序后的文件顺序
         if jpg_files:
-            print(f"\n文件夹 '{os.path.basename(folder_path)}' 中的图片顺序（按文件名自然排序）:")
-            for i, f in enumerate(jpg_files, 1):
-                print(f"  {i}. {f}")
+            print(f"\n文件夹 '{os.path.basename(folder_path)}' 中的图片顺序（{sort_desc}）:")
+            if sort_method == "time":
+                import time
+                for i, f in enumerate(jpg_files, 1):
+                    filepath = os.path.join(folder_path, f)
+                    try:
+                        stat_info = os.stat(filepath)
+                        time_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(stat_info.st_mtime))
+                        print(f"  {i}. {f} (修改时间: {time_str})")
+                    except Exception:
+                        print(f"  {i}. {f}")
+            else:
+                for i, f in enumerate(jpg_files, 1):
+                    print(f"  {i}. {f}")
         
         return jpg_files  
   
