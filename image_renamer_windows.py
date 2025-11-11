@@ -235,24 +235,10 @@ class ImageRenamerApp:
             self.quality_scale.config(state='disabled')
     
     def compress_image(self, input_path, output_path, target_size=(1800, 1800), quality=85):
-        """压缩图片到指定尺寸"""
+        """压缩图片到指定尺寸（不旋转）"""
         try:
             with Image.open(input_path) as img:
-                # 处理图片方向（EXIF数据）
-                try:
-                    from PIL.ExifTags import ORIENTATION
-                    exif = img._getexif()
-                    if exif is not None:
-                        orientation = exif.get(0x0112)  # ORIENTATION tag
-                        if orientation == 3:
-                            img = img.rotate(180, expand=True)
-                        elif orientation == 6:
-                            img = img.rotate(270, expand=True)
-                        elif orientation == 8:
-                            img = img.rotate(90, expand=True)
-                except Exception:
-                    # 如果EXIF处理失败，继续处理
-                    pass
+                # 不处理EXIF方向，保持原始方向
                 
                 # 转换为RGB模式（如果是RGBA或其他模式）
                 if img.mode != 'RGB':

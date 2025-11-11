@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 图片批量重命名工具
-适用于macOS系统
+适用于Windows系统
 """
 
 import os
@@ -66,7 +66,7 @@ class ImageRenamerApp:
     
     def setup_ui(self):
         """设置用户界面"""
-        self.root.title("图片批量重命名工具-macOS版")
+        self.root.title("图片批量重命名工具 - Windows版")
         self.root.geometry("800x800")
         
         # 设置macOS风格 - 添加异常处理
@@ -299,7 +299,7 @@ class ImageRenamerApp:
     
     def natural_sort_key(self, text):
         """
-        自然排序键函数
+        自然排序键函数 - Windows版本
         将 '1.jpg', '2.jpg', '10.jpg' 正确排序为 1, 2, 10
         而不是字符串排序的 1, 10, 2
         """
@@ -308,22 +308,10 @@ class ImageRenamerApp:
         
         return [atoi(c) for c in re.split(r'(\d+)', text)]
     
-    def get_file_sort_key_by_time(self, folder_path, filename):
-        """
-        获取文件的排序键（按修改时间）
-        """
-        filepath = os.path.join(folder_path, filename)
-        try:
-            stat_info = os.stat(filepath)
-            return (stat_info.st_mtime, filename.lower())
-        except Exception as e:
-            print(f"获取文件信息失败 {filename}: {e}")
-            return (0, filename.lower())
-    
     def get_jpg_files_in_folder(self, folder_path):
         """
         获取文件夹中的所有jpg文件
-        按文件名自然排序（与文件管理器默认顺序一致）
+        Windows版本：按照文件名的自然顺序排序
         """
         jpg_files = []
         try:
@@ -339,12 +327,12 @@ class ImageRenamerApp:
             print(f"读取文件夹错误 {folder_path}: {e}")
             return []
         
-        # 按文件名自然排序（与文件管理器默认顺序一致）
+        # Windows版本：使用自然排序（按文件名）
         jpg_files.sort(key=self.natural_sort_key)
         
         # 调试输出 - 显示排序后的文件顺序
         if jpg_files:
-            print(f"\n文件夹 '{os.path.basename(folder_path)}' 中的图片顺序（按文件名）:")
+            print(f"\n文件夹 '{os.path.basename(folder_path)}' 中的图片顺序（按文件名自然排序）:")
             for i, f in enumerate(jpg_files, 1):
                 print(f"  {i}. {f}")
         
