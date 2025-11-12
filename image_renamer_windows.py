@@ -61,7 +61,8 @@ class ImageRenamerApp:
             "_14_组合仪表.jpg",
             "_15_里程数特写.jpg",
             "_18_变速杆.jpg",
-            "_11_钥匙.jpg"
+            "_11_钥匙.jpg",
+            "_60_车辆铭牌"
         ]
     
     def setup_ui(self):

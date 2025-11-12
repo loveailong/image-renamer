@@ -61,7 +61,8 @@ class ImageRenamerApp:
             "_14_组合仪表.jpg",
             "_15_里程数特写.jpg",
             "_18_变速杆.jpg",
-            "_11_钥匙.jpg"
+            "_11_钥匙.jpg",
+            "_60_车辆铭牌.jpg"
         ]
     
     def setup_ui(self):
@@ -408,8 +409,8 @@ class ImageRenamerApp:
                     # 获取jpg文件
                     jpg_files = self.get_jpg_files_in_folder(subfolder_path)
                     
-                    if len(jpg_files) != 29:
-                        warnings.append(f"文件夹 '{subfolder}' 中有 {len(jpg_files)} 张图片，不是29张")
+                    if len(jpg_files) != 30:
+                        warnings.append(f"文件夹 '{subfolder}' 中有 {len(jpg_files)} 张图片，不30张")
                         continue
                     
                     # 生成重命名预览
@@ -454,9 +455,9 @@ class ImageRenamerApp:
                     messagebox.showwarning("警告", "当前文件夹中没有找到图片文件")
                     return
                 
-                if len(jpg_files) != 29:
+                if len(jpg_files) != 30:
                     result = messagebox.askyesno("警告", 
-                        f"当前文件夹中有 {len(jpg_files)} 张图片，不是29张\n是否继续？")
+                        f"当前文件夹中有 {len(jpg_files)} 张图片，不是30张\n是否继续？")
                     if not result:
                         return
                 
